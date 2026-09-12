@@ -1,0 +1,24 @@
+# generated world, models, run artifacts
+data/
+models/
+runs/
+
+# secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+.vite/
+
+# editors / OS
+.DS_Store
+*.swp

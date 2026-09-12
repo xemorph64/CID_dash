@@ -1,0 +1,14 @@
+seed: 20260310
+world: { people: 1500, firs: 500, cdr_rows: 5000, txns: 2000, towers: 60,
+         background_networks: 30, synthetic_threshold_inr: 50000 }
+extract: { backend: rules }          # rules | muril
+er: { auto_merge: 0.95, review_min: 0.75,
+      sbert_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 }
+nlp: { encoder: google/muril-base-cased }
+copresence: { window_minutes: 15, dbscan_eps: 0.5, dbscan_min_samples: 4, night_hours: [0, 5] }
+analytics: { case_hops: 2, kpp_k: 2, bundle_threshold: 12, max_nodes: 300 }
+hgt: { hidden: 64, heads: 2, layers: 2, epochs: 200, lr: 0.005 }
+linkpred: { min_score: 0.6, max_per_case: 5 }
+explain: { epochs: 200, top_k_edges: 8 }
+risk: { weights: { network: 1, financial: 1, comms_place: 1, anomaly: 1 },
+        confidence: { high_documented_share: 0.7, medium_documented_share: 0.4, high_min_resolution: 0.95 } }

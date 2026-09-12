@@ -1,6 +1,17 @@
 ## Current milestone
 
-M0 — Foundations. Human said "go" on 2026-09-12.
+M0 — Foundations. **Complete, awaiting the human checkpoint.** Started and finished 2026-09-12.
+
+Acceptance (all three checks from implementation.md M0, verified, not assumed):
+- `make up && make test` from a clean clone (fresh `git clone`, no `node_modules`, no `.venv`, volumes wiped): passes, exit 0 — backend 6 tests, frontend 1 test, typecheck clean. First attempt failed with `vitest: not found`; fixed at root (Makefile now installs frontend deps on demand) rather than by pre-installing by hand.
+- `curl localhost:8000/api/health` → `{"postgres":"ok","neo4j":"ok"}`, from the clean clone.
+- Shell renders in both font families in a real browser (Anek for interface text, Tiro for the record voice, Devanagari with no tofu), console clean, 32 resources loaded and **zero external** — the offline claim is measured.
+
+Next: M1 (synthetic world) — do not start until the human clears this checkpoint.
+
+---
+
+Original plan for M0 (kept for reference):
 
 Files to create:
 - Root: `Makefile`, `docker-compose.yml`, `.env.example`, `config/cid.yaml`, `.gitignore` (written directly, not delegated — they define the contract both backend and frontend build against)

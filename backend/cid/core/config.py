@@ -5,6 +5,7 @@ The hard fallbacks match docker-compose.yml's fallback values exactly.
 
 from __future__ import annotations
 
+import datetime
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,6 +44,14 @@ class WorldConfig:
     towers: int
     background_networks: int
     synthetic_threshold_inr: int
+    accounts: int
+    phone_regs: int
+    companies: int
+    vehicles: int
+    # Fixed window: generation must never depend on today's date (determinism).
+    # PyYAML parses unquoted ISO dates into datetime.date.
+    start_date: datetime.date
+    end_date: datetime.date
 
 
 @dataclass(frozen=True)

@@ -71,6 +71,7 @@ _None open. The four raised before M0 were resolved on 2026-09-12 (human asked f
 ## Gotchas
 
 - Repo was not a git repository at session start; ran `git init` as the first M0 step.
+- Adding a key to `config/cid.yaml` **breaks `get_settings()` immediately** — the sub-configs are frozen dataclasses built with `WorldConfig(**raw["world"])`, so an unknown key raises `TypeError`. I hit this by editing the yaml for M1 without touching `config.py`, and committed it broken because I didn't re-run `make test` after a "config-only" edit. `tests/unit/test_config.py` catches it in under a second. **Every future config addition changes two files, and re-run the tests even for a one-line yaml edit.** (PyYAML also parses unquoted ISO dates into `datetime.date`, so date keys need a `datetime.date` annotation, not `str`.)
 - `make` recipes run each line in one shell, so `cd backend && cmd > frontend/out.json` resolves the redirect *after* the `cd` and writes to `backend/frontend/`. Fixed in the `types` target by scoping the `cd` to a subshell: `(cd backend && cmd) > frontend/openapi.json`. Watch for this in every future target that redirects output across directories.
 - Team machine versions recorded 2026-09-12: Docker 29.7.2 (Compose v5.1.0), Node v24.18.0, Python 3.12.3, `uv` 0.10.12, NVIDIA driver 580.173.02 supporting CUDA 13.0. PyTorch CUDA wheel should target a cu12x build compatible with driver-reported CUDA 13.0 (pick this at M1's environment setup, not M0 — M0 has no GPU-dependent code).
 

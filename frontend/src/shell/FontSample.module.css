@@ -1,0 +1,13 @@
+.sample {
+  display: flex;
+  gap: var(--space-6);
+  font-size: var(--text-25);
+}
+
+.anek {
+  font-family: var(--font-anek);
+}
+
+.tiro {
+  font-family: var(--font-tiro);
+}

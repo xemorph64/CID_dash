@@ -1,0 +1,49 @@
+/*
+ * C.I.D. design tokens — prd.md §5.4.
+ * Every colour C.I.D. uses lives here, each with exactly one job.
+ * No hex literal may appear anywhere else in frontend/src.
+ */
+:root {
+  /* Palette — seven colours, each with one job (prd §5.4) */
+  --desk: #E9EDEB; /* Canvas background — a cool record-room grey, never cream */
+  --sheet: #FAFBF9; /* Drawers, record sheets, lead rows — paper laid on the desk */
+  --ink: #1D2B5C; /* Text; every documented link and entity outline */
+  --graphite: #7D828A; /* AI suggestions (pencil); faint and secondary text */
+  --stamp: #5A3D8F; /* Human decisions only: stamps, reviewer marks, audit */
+  --highlighter: #D9EE4A; /* "Look here" — used at ~55% opacity, multiply blend */
+  --cut: #B3362B; /* Scissors, cut marks, destructive confirmations, errors */
+
+  /* Hairlines and dividers: Blue ink at 12% opacity */
+  --hairline: color-mix(in srgb, var(--ink) 12%, transparent);
+
+  /* Type scale (1.25 ratio): 13 · 16 · 20 · 25 · 31 px. Body 16/24. */
+  --text-13: 13px;
+  --text-16: 16px;
+  --text-20: 20px;
+  --text-25: 25px;
+  --text-31: 31px;
+  --line-body: 24px;
+
+  /* Spacing — 4px base grid */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* Radii */
+  --radius-sheet: 2px;
+  --radius-pill: 999px;
+
+  /* Focus ring */
+  --focus-ring: 2px solid var(--ink);
+  --focus-ring-offset: 2px;
+
+  /* Sheet lift: the only permitted shadow */
+  --shadow-sheet: 0 1px 0 0 var(--hairline);
+
+  /* Two voices (prd §5.4) */
+  --font-anek: 'Anek Latin', 'Anek Devanagari', 'Anek Tamil', 'Anek Bangla', sans-serif; /* C.I.D. speaking — all interface text */
+  --font-tiro: 'Tiro Devanagari Hindi', 'Anek Devanagari', 'Anek Tamil', 'Anek Bangla', serif; /* The record speaking — text quoted verbatim from a source record */
+}

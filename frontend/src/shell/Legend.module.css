@@ -1,0 +1,45 @@
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  background: var(--sheet);
+  border-top: 1px solid var(--hairline);
+  font-size: var(--text-13);
+  color: var(--ink);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.swatch {
+  display: inline-block;
+  width: 28px;
+  border-top-width: 2px;
+  border-top-style: solid;
+}
+
+.ink {
+  border-top-color: var(--ink);
+}
+
+.dotted {
+  border-top-color: var(--ink);
+  border-top-style: dotted;
+}
+
+.pencil {
+  border-top-color: var(--graphite);
+  border-top-style: dashed;
+  opacity: 0.8;
+}
+
+.stamp {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px double var(--stamp);
+}

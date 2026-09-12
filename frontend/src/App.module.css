@@ -1,0 +1,41 @@
+.app {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  grid-template-rows: auto 1fr auto auto;
+  grid-template-areas:
+    'strip strip'
+    'rail  board'
+    'legend legend'
+    'time  time';
+  height: 100%;
+}
+
+.strip {
+  grid-area: strip;
+}
+
+.rail {
+  grid-area: rail;
+}
+
+.board {
+  grid-area: board;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.boardLabel {
+  margin: 0;
+  color: var(--graphite);
+}
+
+.legend {
+  grid-area: legend;
+}
+
+.time {
+  grid-area: time;
+}

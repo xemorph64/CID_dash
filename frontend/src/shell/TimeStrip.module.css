@@ -1,0 +1,16 @@
+.strip {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  background: var(--sheet);
+  border-top: 1px solid var(--hairline);
+  color: var(--graphite);
+  font-size: var(--text-13);
+}
+
+.bar {
+  flex: 1;
+  height: 1px;
+  margin-left: var(--space-3);
+  background: var(--hairline);
+}

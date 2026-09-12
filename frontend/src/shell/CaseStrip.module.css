@@ -1,0 +1,23 @@
+.strip {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--sheet);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-20);
+  font-weight: 600;
+}
+
+.courtView {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--graphite);
+  font-size: var(--text-13);
+}

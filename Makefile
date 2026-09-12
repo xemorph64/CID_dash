@@ -28,7 +28,7 @@ test-fast:
 	cd backend && uv run pytest tests/unit -q
 
 types:
-	cd backend && uv run python -c "import json, cid.api.main as m; print(json.dumps(m.app.openapi()))" > frontend/openapi.json
+	(cd backend && uv run python -c "import json, cid.api.main as m; print(json.dumps(m.app.openapi()))") > frontend/openapi.json
 	cd frontend && npm run generate:types
 
 lint:

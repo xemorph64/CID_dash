@@ -11,6 +11,8 @@ dependencies = [
     "neo4j",
     "pyyaml",
     "python-dotenv",
+    "faker>=40.38.0",
+    "indic-transliteration>=2.3.82",
 ]
 
 [dependency-groups]

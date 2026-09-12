@@ -1,6 +1,11 @@
 seed: 20260310
 world: { people: 1500, firs: 500, cdr_rows: 5000, txns: 2000, towers: 60,
-         background_networks: 30, synthetic_threshold_inr: 50000 }
+         background_networks: 30, synthetic_threshold_inr: 50000,
+         # counts below are from prd §7's source table; they were missing from
+         # architecture §10's block but the generator needs them.
+         accounts: 2000, phone_regs: 1800, companies: 150, vehicles: 300,
+         # fixed window so generation never depends on today's date (determinism)
+         start_date: 2025-01-01, end_date: 2025-12-31 }
 extract: { backend: rules }          # rules | muril
 er: { auto_merge: 0.95, review_min: 0.75,
       sbert_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 }

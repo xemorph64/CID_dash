@@ -1,6 +1,23 @@
 ## Current milestone
 
-M0 — Foundations. **Complete, awaiting the human checkpoint.** Started and finished 2026-09-12.
+M1 — Synthetic world. Started 2026-09-12 (human cleared the M0 checkpoint and asked for the four open questions to be resolved; see "Resolved questions" below).
+
+**Plan.** Files under `backend/cid/pipeline/generate/`: `names.py` (name corpus + variant rendering + the four identity traps), `narratives.py` (FIR template families with gold spans/relations at character offsets), `networks.py` (N1–N3 + ~30 background), `lookalikes.py` (4 honest false-positive shapes), `world.py` (orchestrates, emits `data/world/*.jsonl`), `truth.py` (assembles `truth.json`), `report.py` (`make world-report`). Tests in `backend/tests/unit/` (per-module) and `backend/tests/golden/` (world-level acceptance).
+
+**Determinism discipline** (the fragile part — one seed must give byte-identical output):
+- Every function that needs randomness takes an explicit `rng: random.Random`; no module-level `random.*`, no global state. `world.py` derives per-stage child RNGs from `config.seed` deterministically.
+- Faker is seeded per-instance (`fake.seed_instance(n)`), never via the global `Faker.seed`.
+- Never use builtin `hash()` for IDs or ordering — it is salted per process (`PYTHONHASHSEED`). Use `hashlib` instead.
+- No `datetime.now()` / `uuid4()` anywhere in generation; all dates derive from `world.start_date`/`world.end_date` in config.
+- Sort before writing anything derived from a set; JSON written with `ensure_ascii=False, sort_keys=True, separators=(",", ":")`, UTF-8, `\n` newlines.
+
+**Gotcha found up front:** raw ITRANS transliteration of "mohammad ali" yields `मोहम्मद् अलि`, not the `मोहम्मद अली` that prd demo beat 2 requires. So the demo-critical identity traps use **curated** script forms; transliteration is only for bulk background names where exact orthography doesn't matter.
+
+Acceptance tests to write (from implementation.md M1): byte-identical re-run on the same seed; `truth.json` carries N1–N3 plus ≥30 background networks each with a typology label; all four Mohammad Ali surface forms across four different sources; the two Raj Kumars differ in DOB and phone; ≥10% of person mentions in Devanagari and both IPC and BNS codes present; every gold span satisfies `text[start:end] == surface`.
+
+---
+
+M0 — Foundations. **Complete**, checkpoint cleared by the human 2026-09-12.
 
 Acceptance (all three checks from implementation.md M0, verified, not assumed):
 - `make up && make test` from a clean clone (fresh `git clone`, no `node_modules`, no `.venv`, volumes wiped): passes, exit 0 — backend 6 tests, frontend 1 test, typecheck clean. First attempt failed with `vitest: not found`; fixed at root (Makefile now installs frontend deps on demand) rather than by pre-installing by hand.
@@ -31,18 +48,25 @@ Unclear/flagged before starting: the three items already under "Open questions f
 
 ## Deviations from master/prd/arch
 
-## Deviations from master/prd/arch
-
 - architecture.md §5.2 describes "an index on relationship `edge_id`" as one index. Neo4j 5 has no wildcard-relationship-type index syntax (confirmed against the live container: `FOR ()-[r]-()` is rejected). `schema.cypher` instead creates one `edge_id` index per relationship type listed in §5.2 (13 total). Same intent, different syntax — approved as the only way to satisfy the requirement.
 
 ## Stuck
 
 ## Open questions for the team
 
-- prd.md §10 P-05 says community grouping for leads uses "Leiden communities," but architecture.md §6.7 specifies `nx.community.louvain_communities` (Louvain). These are different algorithms with different outputs. Need a call on which one is actually built; architecture.md's own note ("master allows Louvain/Leiden") suggests Louvain was the intended implementation choice and P-05's "why" text wasn't updated to match. Not resolving silently — see reply to human.
-- architecture.md is internally ambiguous about person-level `CALLED` and `PRESENT_AT`: §5.2's schema table lists them as graph relationship types (DOCUMENTED for phone, DERIVED for person), implying they are stored Neo4j relationships. But §6.5 (Graph build) says "Person-level `CALLED` and `PRESENT_AT` are not duplicated in the graph; the API derives them through `REGISTERED_TO` when needed and labels them DERIVED" — implying they are computed at query time, not stored. This affects whether `ml/hetero_data.py` (§6.8, which says it uses "edge types from §5.2... documented + derived only") needs to synthesize these edges itself or can read them from Neo4j directly. Needs a decision before M5/M9.
-- prd.md P-13 answers master Q-AIM-05 (open: "class of merged identities") with "Merges are DERIVED... with resolution_confidence." But architecture.md's Neo4j schema (§5.2) has no relationship type representing a merge (no `SAME_AS`/`MERGED_WITH` edge) — entity resolution instead consolidates `mentions.resolved_entity_id` in Postgres and produces one `entities` row with `resolution_confidence` directly on it. So there is no edge for "merges are DERIVED" to attach an `evidence_class` to. Need to confirm this P-13 answer is describing the *entity's* resolution_confidence provenance in the abstract (not a literal graph edge), or whether a merge-edge is expected to exist.
-- prd.md §7 says N2 (mule fan-out) is built to satisfy both T-02 (fan-out) and T-03 (structuring: ≥5 transfers below the synthetic threshold within 72h). The N2 description given ("hub account splits funds to 12 recently opened accounts below a synthetic threshold") only clearly describes the T-02 fan-out shape; it doesn't say the hub also makes ≥5 sub-threshold transfers within a 72h window from one account, which is what T-03's query idea (architecture §6.9) requires. Flagging so `generate/networks.py` (M1) is built to actually satisfy both typology queries, not just one.
+_None open. The four raised before M0 were resolved on 2026-09-12 (human asked for resolutions rather than answering each); the decisions are recorded below under "Resolved questions". Raise anything new here._
+
+### Resolved questions (2026-09-12, decided by Claude at the human's request)
+
+**R-1 — Communities: Louvain, not Leiden.** prd §10 P-05's wording said "Leiden"; architecture.md §6.7 specifies `nx.community.louvain_communities(G, seed=seed)`. Resolved in favour of **Louvain**, because: master §13.2 explicitly allows either, so neither choice conflicts with the master; NetworkX ships Louvain with a `seed` argument, which the determinism requirement (same seed ⇒ same leads, prd §8) needs, at zero new dependencies; Leiden would require adding `leidenalg` + `igraph` (CLAUDE.md rule 9) to gain an advantage — Leiden's guarantee against badly-connected communities — that only matters at a scale far above the ≤2,000-node case subgraphs of architecture §6.7. P-05's substance (case-scoped network, two steps out, communities used to group leads) is unchanged; only the algorithm name was wrong. prd §10 P-05 annotated in place so the two documents no longer contradict.
+
+**R-2 — Person-level `CALLED` / `PRESENT_AT` are NOT stored in Neo4j.** architecture.md §5.2's table and §6.5 appeared to disagree. Resolved in favour of **§6.5**: the graph stores phone-level `CALLED` (one edge per call, P-04) and phone-level `PRESENT_AT` only; person-level versions are derived through `REGISTERED_TO` at query time by the API and labelled DERIVED. Reasons: §6.5 is the specific operational instruction about what the writer does, and it prevents a second, driftable copy of the same fact; materialising person-level duplicates would roughly double edge count for no query we can't serve with a join. §5.2's "DOCUMENTED (phone), DERIVED (person)" is read as *the class the edge carries wherever it appears*, including when the API synthesises it — not a promise that person-level rows exist in the store.
+  - Consequence for M9 `ml/hetero_data.py`: it does **not** need to synthesise person-level edges. `PhoneNumber` is already a node type with its own features (§6.8) and `REGISTERED_TO` connects phone→person, so the HGT propagates person→phone→phone→person natively. Feeding it a synthesised person-level `CALLED` on top would double-count the same evidence.
+  - General rule adopted from this: **derive cheap joins at query time; materialise only expensive computations.** That is why `CO_LOCATED_WITH` *is* materialised (§6.6) — it is a DBSCAN result, not a join.
+
+**R-3 — P-13 means no `SAME_AS` edge exists; ER merges live in Postgres.** Master §19.4 rule 8 leaves open "the class of edges that *depend on* entity-resolution merges" (Q-AIM-05) — it does not ask for a merge edge. Resolved: entity resolution stays a Postgres-side consolidation (`mentions.resolved_entity_id` → one `entities` row carrying `resolution_confidence`); **no `SAME_AS`/`MERGED_WITH` relationship is ever written to Neo4j.** P-13's "merges are DERIVED" is about the *identity conclusion*, not an edge class: an edge whose endpoint identity came out of ER keeps its own class (DOCUMENTED when a record states the relationship) while carrying `resolution_confidence` in the common set, and `confidence = min(extraction_confidence, resolution_confidence)` (§5.2) is exactly how the merge's uncertainty propagates onto every edge that depends on it. The officer sees the identity is assembled through the identity stack and match chips (prd §5.6.4), not through an edge. The mechanism P-13 needs therefore already exists in the schema.
+
+**R-4 — N2 must satisfy T-02 and T-03 simultaneously; the generator supplies the missing timing.** prd §7 assigns N2 both typologies but describes only the fan-out shape. Resolved per CLAUDE.md rule 10 (tune the data, never the rules): `generate/networks.py` builds N2 so both architecture §6.9 queries fire on it, adding timing specificity that prd §7 leaves unstated without contradicting anything it does say — 12 mule accounts each opened 10–50 days before they receive (T-02 needs ≥8 opened <60 days prior); each mule forwards on within 6–36 h so median holding time is <48 h (T-02); all 12 transfers below the ₹50,000 synthetic threshold, with ≥5 of them falling inside one 72-hour window (T-03 needs ≥5 sub-threshold from one account within 72 h). Thresholds themselves are untouched.
 
 ## Gotchas
 
@@ -53,6 +77,8 @@ Unclear/flagged before starting: the three items already under "Open questions f
 ## Dependencies added
 
 - `httpx` (backend dev dependency) — required by `fastapi.testclient.TestClient`, used in `test_health.py`. Not pulled in transitively by `fastapi`/`uvicorn[standard]`.
+- M1: `faker` — prd §7 names it as the source of person/address filler ("Faker `en_IN` and `hi_IN` plus curated name lists"). `hi_IN` emits Devanagari names directly, which helps the ≥10%-Devanagari acceptance check.
+- M1: `indic-transliteration` — already sanctioned by architecture.md §3 (listed under ER); used here for Devanagari/Tamil/Bengali renderings of background names, and at M4 for the Indic phonetic key.
 
 ## What this milestone taught
 

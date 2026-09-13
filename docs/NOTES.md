@@ -1,6 +1,21 @@
 ## Current milestone
 
-M2 — Ingest, normalise, record store. Started 2026-09-13 (human cleared the M1 checkpoint).
+M2 — Ingest, normalise, record store. **Complete.** 2026-09-13. (M2 has no human checkpoint in implementation.md's milestone map, so M3a follows directly.)
+
+Acceptance (all five from implementation.md M2, verified against a clean `make reset`):
+- unit tests per normaliser — phone `+91`/`0`/bare forms collapse to one value, mixed IPC/BNS sample, `Asia/Kolkata` 02:00 → previous UTC day
+- row counts match the world report (kyc 2035, phone_reg 1804, company 186, vehicle 300, fir 500, cdr 4997, txn 1998 — cdr/txn short by the 3 and 2 deliberately unlawful records)
+- re-ingesting gives identical `record_hash` values and no duplicate rows (aggregate hash over `(source_record_id, record_hash)` unchanged)
+- the 5 records with no legal basis are refused into `ingest_rejects` and counted
+- no raw phone or account number in the graph-bound tables — checked adversarially: all 3,839 raw msisdns/account numbers from the world searched against all 7,692 distinct mention surfaces, exact and substring, zero hits
+
+`make reset` now exists (drop both stores → world → ingest) and gains a pipeline step per milestone.
+
+**For M3a, carried forward:** `mentions`/`relation_mentions` already hold the structured sources at confidence 1.0; M3a adds FIR-narrative extraction only. `source_records.text` holds the narrative, and `truth.json`'s per-FIR `spans`/`relations` are the gold standard to score against, on the held-out template families (`cheating`, `extortion`).
+
+---
+
+M2 plan (kept for reference). Started 2026-09-13 (human cleared the M1 checkpoint).
 
 **Plan.** `backend/cid/core/hashing.py` (record_hash = SHA-256 of canonical JSON; `hmac_id` = HMAC-SHA256 with the local key), `backend/cid/pipeline/normalize/{phones,dates,offences,addresses,names}.py`, `backend/cid/pipeline/ingest/load.py` (every source → `source_records` + `mentions` + `relation_mentions`), a `0002` migration adding `source_records.normalized` jsonb, and `config.py` gaining `hmac_key`. Tests: one unit file per normaliser plus `tests/golden/test_ingest.py` for the five M2 acceptance checks.
 
@@ -122,6 +137,13 @@ _None open. The four raised before M0 were resolved on 2026-09-12 (human asked f
 - M1: `indic-transliteration` — already sanctioned by architecture.md §3 (listed under ER); used here for Devanagari/Tamil/Bengali renderings of background names, and at M4 for the Indic phonetic key.
 
 ## What this milestone taught
+
+**M2 — Ingest, normalise, record store.**
+1. **One bug class, five instances, now one test.** Ground truth kept leaking into data the system is supposed to reason *from*: company names ("N1 Shell 2 Pvt Ltd"), `person_id` in vehicle and company records, `TRAPACC000001` account numbers, `ADDR_NOISE_0000` addresses, `TXN_N1_00` transaction ids. The distinction that resolves it: records **should** look synthetic (the prd's own examples are `TXN-SYN-88213`) — what they must not do is announce their *role in the test design*. Individual fixes were whack-a-mole; the scanning invariant is what actually closes it.
+2. **A failing test was right and the code was wrong — twice.** The row-count test caught a stale record store (no way to change the world without orphans → `make reset`), then caught `FIR_000224` colliding with bulk FIR #224, where the upsert silently dropped one of the two. Both looked like flaky environment problems and neither was.
+3. **Secrets get no fallback.** A default `HMAC_KEY` would hash identifiers with a guessable key over a 10-digit number space — P-08's enumeration risk, reintroduced by convenience.
+4. **Check ground truth against the data, and privacy claims adversarially.** "No raw identifiers" is only meaningful if you take the actual raw values out of the world and hunt for each one; a regex for digit-strings would have passed while leaking.
+5. IPC 503 defines criminal intimidation, 506 punishes it. Getting an IPC↔BNS equivalence wrong defeats the one thing the mapping is for, and the evaluators know these sections cold.
 
 **M1 — Synthetic world.**
 1. **A green test suite is not evidence the data is right.** Every M1 acceptance check passed while the demo case pointed at an unrelated FIR, the bank KYC card contradicted its own ground truth, and 39 companies were named "N1 Shell 2 Pvt Ltd". All three surfaced from reading the generated world the way a human would. The acceptance criteria test the properties someone thought to list; they say nothing about the ones nobody listed.

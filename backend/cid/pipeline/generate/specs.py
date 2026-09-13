@@ -27,12 +27,27 @@ DEVICE_ID = "DEV_{:06d}"
 
 @dataclass(frozen=True)
 class Account:
+    """A bank account. Exactly one of holder_person_id / holder_org_id is set.
+
+    Organisations hold accounts directly (P-02 allows `Organization` as an
+    `OWNS` source for accounts), which is what T-01 needs: its query walks
+    transfer chains through accounts *owned by organisations* incorporated
+    shortly before the money moved.
+    """
+
     account_id: str
     account_no: str  # synthetic, appears in records
-    holder_person_id: str
     opened: datetime.date
     bank: str
     kyc_status: str
+    holder_person_id: str | None = None
+    holder_org_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if (self.holder_person_id is None) == (self.holder_org_id is None):
+            raise ValueError(
+                f"{self.account_id}: set exactly one of holder_person_id / holder_org_id"
+            )
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,4 @@
-.PHONY: up down models world pipeline dev test test-fast reset verify-offline types lint
+.PHONY: up down models world world-report pipeline dev test test-fast reset verify-offline types lint
 
 # Frontend deps, installed on demand so a clean clone needs no setup step.
 # (`uv run` already does the equivalent for the backend.) Re-runs only when
@@ -34,6 +34,12 @@ test: frontend/node_modules
 test-fast:
 	cd backend && uv run pytest tests/unit -q
 
+world:
+	cd backend && uv run python -m cid.pipeline.generate.world
+
+world-report:
+	cd backend && uv run python -m cid.pipeline.generate.report
+
 types: frontend/node_modules
 	(cd backend && uv run python -c "import json, cid.api.main as m; print(json.dumps(m.app.openapi()))") > frontend/openapi.json
 	cd frontend && npm run generate:types
@@ -46,9 +52,6 @@ lint: frontend/node_modules
 
 models:
 	@echo "make models: lands in M1 (downloads MuRIL + multilingual Sentence-BERT into models/hf/)."; exit 1
-
-world:
-	@echo "make world: lands in M1 (synthetic world generator)."; exit 1
 
 pipeline:
 	@echo "make pipeline: lands starting M2 (ingest) through M9 (ML stages)."; exit 1

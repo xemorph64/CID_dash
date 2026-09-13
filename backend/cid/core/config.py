@@ -35,6 +35,17 @@ def _resolve(key: str, dotenv_map: dict[str, str | None]) -> str:
     return _FALLBACKS[key]
 
 
+def _resolve_secret(key: str, dotenv_map: dict[str, str | None]) -> str:
+    """Like _resolve, but a missing secret is an error rather than a default."""
+    value = os.environ.get(key) or dotenv_map.get(key)
+    if not value:
+        raise RuntimeError(
+            f"{key} is not set. Copy .env.example to .env and generate one: "
+            f"openssl rand -hex 32"
+        )
+    return value
+
+
 @dataclass(frozen=True)
 class WorldConfig:
     people: int
@@ -131,6 +142,10 @@ class Settings:
     neo4j_uri: str
     neo4j_user: str
     neo4j_password: str
+    # Secrets have no fallback on purpose: a silent default would mean identifiers
+    # hashed with a guessable key, which is the enumeration risk P-08 exists to close.
+    hmac_key: str
+    jwt_secret: str
 
     seed: int
     world: WorldConfig
@@ -163,6 +178,8 @@ def get_settings(repo_root: Path = REPO_ROOT) -> Settings:
         neo4j_uri=_resolve("NEO4J_URI", dotenv_map),
         neo4j_user=_resolve("NEO4J_USER", dotenv_map),
         neo4j_password=_resolve("NEO4J_PASSWORD", dotenv_map),
+        hmac_key=_resolve_secret("HMAC_KEY", dotenv_map),
+        jwt_secret=_resolve_secret("JWT_SECRET", dotenv_map),
         seed=raw["seed"],
         world=WorldConfig(**raw["world"]),
         extract=ExtractConfig(**raw["extract"]),

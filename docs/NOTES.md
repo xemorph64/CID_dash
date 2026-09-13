@@ -1,6 +1,16 @@
 ## Current milestone
 
-M1 — Synthetic world. **Complete, awaiting the human checkpoint.** 2026-09-12 → 2026-09-13.
+M2 — Ingest, normalise, record store. Started 2026-09-13 (human cleared the M1 checkpoint).
+
+**Plan.** `backend/cid/core/hashing.py` (record_hash = SHA-256 of canonical JSON; `hmac_id` = HMAC-SHA256 with the local key), `backend/cid/pipeline/normalize/{phones,dates,offences,addresses,names}.py`, `backend/cid/pipeline/ingest/load.py` (every source → `source_records` + `mentions` + `relation_mentions`), a `0002` migration adding `source_records.normalized` jsonb, and `config.py` gaining `hmac_key`. Tests: one unit file per normaliser plus `tests/golden/test_ingest.py` for the five M2 acceptance checks.
+
+**Decision taken up front — where raw identifiers may live.** M2's acceptance says "no raw phone or account number appears anywhere in the graph-bound tables". architecture §5.3 settles the ambiguity: "raw values remain only in `source_records.raw`". So `mentions.surface` carries the **HMAC hash** for `Phone`/`Account` mentions, never the digits; person and organisation names stay as written, since P-08 is about identifiers, not names. The highlighter loses nothing — it works from `start`/`end` offsets into `source_records.text`, which is the authorised record store anyway, so the raw number never needs a second home. This also matches the UI, which shows "last 4 of hash" for phones and accounts (prd §5.4).
+
+**Determinism caveat to carry:** `msisdn_hash`/`account_hash` depend on the local `HMAC_KEY`, so those values differ between developers' machines by design. Graph structure, entity ids and therefore leads are unaffected — only the opaque identifiers change. "Same seed ⇒ same leads" still holds; "same seed ⇒ same hashes" holds only per-machine.
+
+---
+
+M1 — Synthetic world. **Complete**, checkpoint cleared by the human 2026-09-13. Demo FIR switched to English at their request.
 
 Acceptance (all six from implementation.md M1, verified against a freshly generated full-scale world, not assumed):
 - `make world` twice → byte-identical, including under a changed `PYTHONHASHSEED`

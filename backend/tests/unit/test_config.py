@@ -1,3 +1,5 @@
+import pytest
+
 from cid.core.config import get_settings
 
 
@@ -29,6 +31,10 @@ def test_fallback_when_nothing_set(monkeypatch):
         monkeypatch.delenv(key, raising=False)
     # Also hide any repo-root .env so this test is independent of local setup.
     monkeypatch.setattr("cid.core.config.dotenv_values", lambda path: {})
+    # Secrets have no fallback by design (see test_missing_secret_is_an_error),
+    # so supply them explicitly here; this test is about the connection defaults.
+    monkeypatch.setenv("HMAC_KEY", "test-hmac-key")
+    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret")
     s = get_settings()
     assert s.postgres_user == "cid"
     assert s.postgres_password == "cidlocaldev"
@@ -38,3 +44,13 @@ def test_fallback_when_nothing_set(monkeypatch):
     assert s.neo4j_uri == "bolt://localhost:7687"
     assert s.neo4j_user == "neo4j"
     assert s.neo4j_password == "cidlocaldev"
+
+
+def test_missing_secret_is_an_error(monkeypatch):
+    """A silent default for HMAC_KEY would mean identifiers hashed with a
+    guessable key — exactly the enumeration risk P-08 exists to close."""
+    monkeypatch.setattr("cid.core.config.dotenv_values", lambda path: {})
+    monkeypatch.delenv("HMAC_KEY", raising=False)
+    monkeypatch.setenv("JWT_SECRET", "test-jwt-secret")
+    with pytest.raises(RuntimeError, match="HMAC_KEY"):
+        get_settings()

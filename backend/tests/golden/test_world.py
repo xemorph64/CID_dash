@@ -235,6 +235,7 @@ def test_every_mention_surface_occurs_in_its_own_source_record(tmp_path):
     accounts = {a["source_record_id"]: a for a in _read_jsonl(out_dir / "accounts.jsonl")}
     phones = {p["source_record_id"]: p for p in _read_jsonl(out_dir / "phone_regs.jsonl")}
     companies = {c["source_record_id"]: c for c in _read_jsonl(out_dir / "companies.jsonl")}
+    vehicles = {v["source_record_id"]: v for v in _read_jsonl(out_dir / "vehicles.jsonl")}
 
     checked = 0
     for m in truth["mentions"]:
@@ -249,6 +250,8 @@ def test_every_mention_surface_occurs_in_its_own_source_record(tmp_path):
         elif rid in companies:
             director_surfaces = {d["surface"] for d in companies[rid]["directors"]}
             assert m["surface"] in director_surfaces, rid
+        elif rid in vehicles:
+            assert vehicles[rid]["owner_name"] == m["surface"], rid
         else:
             raise AssertionError(f"mention references unknown record {rid}")
         checked += 1
@@ -270,6 +273,70 @@ def test_single_valued_fields_carry_one_mention_each(tmp_path):
         counts[key] = counts.get(key, 0) + 1
     dupes = {k: v for k, v in counts.items() if v > 1}
     assert dupes == {}
+
+
+# Fields whose value IS an entity id but is the record's own identifier
+# (what the record is a record *of*, or a structural cross-reference core
+# to that record type), not a handed-over identity-resolution answer.
+_ID_FIELDS_BY_SOURCE = {
+    "firs.jsonl": {"source_record_id"},
+    "cdr.jsonl": {"source_record_id", "calling_phone_id", "called_phone_id", "tower_id"},
+    "txns.jsonl": {"source_record_id", "from_account_id", "to_account_id"},
+    # account_no is the account's own number, like a vehicle registration.
+    "accounts.jsonl": {"source_record_id", "account_id", "account_no"},
+    "phone_regs.jsonl": {"source_record_id", "phone_id"},
+    "companies.jsonl": {"source_record_id", "org_id"},
+    "vehicles.jsonl": {"source_record_id", "vehicle_id"},
+    "towers.jsonl": {"tower_id"},
+}
+_ENTITY_ID_PREFIXES = ("PERSON_", "ORG_", "ACC_", "PHN_", "VEH_", "LOC_", "EVT_", "DEV_")
+
+
+# A record's own `source_record_id` may legitimately embed a structure id
+# (e.g. a shell-chain transfer's txn_id, "TXN_N1_00", from networks.py —
+# out of this module's ownership); anywhere else, a structure id or a token
+# naming the record's role in the test design ("this is the planted
+# identity", "this is filler") is the same class of leak as a true entity id.
+_ROLE_TOKENS = (
+    "TRAP", "NOISE", "SHELL", "DEMO", "PAYROLL", "HOLDING", "LOOKALIKE",
+    "LA_", "BG_", "N1", "N2", "N3",
+)
+_FORBIDDEN_TOKENS = _ENTITY_ID_PREFIXES + _ROLE_TOKENS
+
+
+def test_no_source_record_leaks_a_true_entity_id_or_test_role(tmp_path):
+    """A source record may state its own identifier (or a structural
+    cross-reference core to that record type, e.g. a txn's two account
+    ids); it must never also carry a *different* entity's true id, a
+    structure id, or a token naming its role in the test design ("TRAP",
+    "NOISE", "SHELL", ...) — those hand over exactly what M4's entity
+    resolution and M9's typology detection exist to work out. Scans the
+    whole serialised record, not just known field names, so a future field
+    can't reintroduce this quietly."""
+    out_dir = _generate(tmp_path, "world")
+    for name, id_fields in _ID_FIELDS_BY_SOURCE.items():
+        for record in _read_jsonl(out_dir / name):
+            scrubbed = {k: v for k, v in record.items() if k not in id_fields}
+            dumped = json.dumps(scrubbed, default=str)
+            for token in _FORBIDDEN_TOKENS:
+                assert token not in dumped, f"{name}: {record.get('source_record_id')} leaks {token!r} in {scrubbed}"
+
+
+def test_vehicle_owner_is_a_resolvable_variant_surface(tmp_path):
+    out_dir = _generate(tmp_path, "world")
+    truth = json.loads((out_dir / "truth.json").read_text(encoding="utf-8"))
+    vehicles = _read_jsonl(out_dir / "vehicles.jsonl")
+    assert vehicles
+
+    vehicle_mentions = {
+        m["source_record_id"]: m for m in truth["mentions"] if m["source_record_id"].startswith("VEHICLE_")
+    }
+    assert len(vehicle_mentions) == len(vehicles)
+    for v in vehicles:
+        assert "owner_person_id" not in v
+        m = vehicle_mentions[v["source_record_id"]]
+        assert v["owner_name"] == m["surface"]
+        assert v["owner_script"] == m["script"]
 
 
 def test_no_bulk_person_collides_with_a_trap(tmp_path):

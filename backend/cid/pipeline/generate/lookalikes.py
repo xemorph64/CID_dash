@@ -23,6 +23,7 @@ from cid.pipeline.generate.networks import (
     _claim,
     _pick_people_with_phones,
     _sample,
+    _txn_id,
     _unclaimed_accounts,
     _unclaimed_people,
 )
@@ -66,7 +67,7 @@ def _payroll_fanout(
         for i, acct in enumerate(staff):
             transfers.append(
                 Transfer(
-                    txn_id=f"TXN_LA_PAYROLL_{month:02d}_{i:02d}",
+                    txn_id=_txn_id(f"LA_PAYROLL_{month:02d}_{i:02d}"),
                     from_account_id=employer.account_id,
                     to_account_id=acct.account_id,
                     amount_inr=amount,
@@ -228,7 +229,7 @@ def _holding_company(
     amount_out = 300_000  # retains 70% — pass-through well under the 0.9 T-01 floor.
     transfers = (
         Transfer(
-            txn_id="TXN_LA_HOLDING_IN",
+            txn_id=_txn_id("LA_HOLDING_IN"),
             from_account_id=parent_acct.account_id,
             to_account_id=sub_acct.account_id,
             amount_inr=amount_in,
@@ -236,7 +237,7 @@ def _holding_company(
             channel="RTGS",
         ),
         Transfer(
-            txn_id="TXN_LA_HOLDING_OUT",
+            txn_id=_txn_id("LA_HOLDING_OUT"),
             from_account_id=sub_acct.account_id,
             to_account_id=parent_acct.account_id,
             amount_inr=amount_out,

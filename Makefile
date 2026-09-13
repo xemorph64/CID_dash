@@ -56,8 +56,20 @@ models:
 pipeline:
 	@echo "make pipeline: lands starting M2 (ingest) through M9 (ML stages)."; exit 1
 
+# Drop both stores, rebuild the world, reload it. The record store keys on
+# source_record_id, so a regenerated world leaves orphaned rows behind unless
+# the store is dropped first — reset is the supported way to change the world.
+# Grows a pipeline step per milestone (extract, resolve, graph...).
 reset:
-	@echo "make reset: needs world + pipeline; lands once M2 is done."; exit 1
+	@bash -c 'set -a; [ -f .env ] && . ./.env; set +a; \
+	docker compose exec -T postgres psql -U "$${POSTGRES_USER:-cid}" -d "$${POSTGRES_DB:-cid}" \
+	  -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" >/dev/null; \
+	docker compose exec -T neo4j cypher-shell -u "$${NEO4J_USER:-neo4j}" -p "$${NEO4J_PASSWORD:-cidlocaldev}" \
+	  "MATCH (n) DETACH DELETE n" >/dev/null'
+	@echo "Stores dropped."
+	$(MAKE) up
+	$(MAKE) world
+	cd backend && uv run python -m cid.pipeline.ingest.load
 
 verify-offline:
 	@echo "make verify-offline: lands in M11 (demo hardening)."; exit 1

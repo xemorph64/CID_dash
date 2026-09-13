@@ -55,6 +55,19 @@ def _business_name(rng: random.Random) -> str:
     return f"{place} {rng.choice(_BUSINESS_WORDS)} Pvt Ltd"
 
 
+def _txn_id(key: str) -> str:
+    """A transaction's record id, in the same shape as the bulk transactions.
+
+    It must not name its structure: this id is the record reference shown in
+    the *Why?* drawer, so "TXN_N1_00" would tell the viewer which network the
+    transaction belongs to — the thing C.I.D. is supposed to work out. Derived
+    with hashlib (never builtin hash(), which is salted per process) from a
+    structure-local key, in a 9xxxxxx band clear of the bulk ids.
+    """
+    digest = int(hashlib.sha1(key.encode("utf-8")).hexdigest()[:12], 16)
+    return f"TXN_{9_000_000 + digest % 1_000_000:07d}"
+
+
 def _sample(pool: list, rng: random.Random, k: int) -> list:
     """Pick `k` distinct items from `pool`, order preserved, choice via rng."""
     if len(pool) < k:
@@ -191,7 +204,7 @@ def _shell_chain(
         hop_account_ids.append(hop_account.account_id)
         transfers.append(
             Transfer(
-                txn_id=f"TXN_{structure_id}_{i:02d}",
+                txn_id=_txn_id(f"{structure_id}_{i:02d}"),
                 from_account_id=prev_account_id,
                 to_account_id=hop_account.account_id,
                 amount_inr=amount,
@@ -208,7 +221,7 @@ def _shell_chain(
 
     transfers.append(
         Transfer(
-            txn_id=f"TXN_{structure_id}_{hops:02d}",
+            txn_id=_txn_id(f"{structure_id}_{hops:02d}"),
             from_account_id=prev_account_id,
             to_account_id=dest.account_id,
             amount_inr=amount,
@@ -292,7 +305,7 @@ def _mule_fanout(
         amount = rng.randint(int(threshold_inr * 0.4), threshold_inr - 1)
         receive.append(
             Transfer(
-                txn_id=f"TXN_{structure_id}_H{i:02d}",
+                txn_id=_txn_id(f"{structure_id}_H{i:02d}"),
                 from_account_id=hub.account_id,
                 to_account_id=mule.account_id,
                 amount_inr=amount,
@@ -303,7 +316,7 @@ def _mule_fanout(
         forward_ts = receipt_ts + datetime.timedelta(hours=rng.uniform(6, 36))
         forward.append(
             Transfer(
-                txn_id=f"TXN_{structure_id}_F{i:02d}",
+                txn_id=_txn_id(f"{structure_id}_F{i:02d}"),
                 from_account_id=mule.account_id,
                 to_account_id=sink.account_id,
                 amount_inr=amount,

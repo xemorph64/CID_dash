@@ -162,6 +162,15 @@ PERSON_ENTITY_TYPES = {"Accused", "Victim", "Witness", "Alias", "Person"}
 
 _ALIAS_WORDS = ["Bunty", "Guddu", "Pintu", "Chintu", "Bobby", "Munna", "Tinku", "Lucky"]
 _BANK_NAMES = ["Demo Bank", "Sahakari Bank", "Grameen Sahyog Bank", "City Trust Bank"]
+# One shared dealer-name pool for every phone (batch, long-term or trap) —
+# a record's seller must never say "TrapSeller"/"LongTerm7": that announces
+# the record's role in the test design rather than looking like a real shop.
+_DEALER_NAMES = [
+    "Sunrise Mobile Store", "Metro Telecom", "City Communications", "Star Mobile Shoppe",
+    "Digital Point", "Cellular World", "New Age Mobiles", "Reliable Telecom",
+    "Shree Mobile Center", "Prime Communications",
+]
+_ADDRESS_STREETS = ["Market Road", "Station Road", "Gandhi Marg", "Civil Lines", "Main Bazar", "Ring Road"]
 
 
 # --- Small deterministic helpers --------------------------------------------
@@ -207,6 +216,13 @@ def _random_date_str(rng: random.Random, profile: WorldProfile) -> str:
     days = max((profile.end_date - profile.start_date).days, 0)
     d = profile.start_date + datetime.timedelta(days=rng.randint(0, days))
     return d.strftime("%d %b %Y")
+
+
+def _plausible_address(rng: random.Random) -> str:
+    """A registered-address string that looks like a real one, not a token
+    like `ADDR_NOISE_0000` — this is also what `normalize/addresses.py`'s
+    `address_key()` is meant to have something real to normalise."""
+    return f"{rng.randint(1, 200)}, {rng.choice(_ADDRESS_STREETS)}, {rng.choice(TOWNS)}"
 
 
 def _pick_variant(person: TruePerson, rng: random.Random) -> NameVariant:
@@ -266,7 +282,7 @@ def _build_phones(profile: WorldProfile, subs: list[TruePerson], rng: random.Ran
         if idx + batch_size > len(subs):
             break
         batch_start = profile.start_date + datetime.timedelta(days=10 + spacing * batch)
-        seller = f"Seller{batch}"
+        seller = rng.choice(_DEALER_NAMES)
         for _ in range(batch_size):
             holder = subs[idx]
             phones.append(
@@ -282,7 +298,7 @@ def _build_phones(profile: WorldProfile, subs: list[TruePerson], rng: random.Ran
             )
             idx += 1
 
-    for j, holder in enumerate(subs[idx:]):
+    for holder in subs[idx:]:
         phones.append(
             Phone(
                 phone_id=PHONE_ID.format(idx),
@@ -291,7 +307,7 @@ def _build_phones(profile: WorldProfile, subs: list[TruePerson], rng: random.Ran
                 activated=profile.start_date - datetime.timedelta(days=800),
                 deactivated=None,
                 imsi=f"IMSI{idx:09d}",
-                seller=f"LongTerm{j % 50}",
+                seller=rng.choice(_DEALER_NAMES),
             )
         )
         idx += 1
@@ -313,7 +329,7 @@ def _build_companies(profile: WorldProfile, people: list[TruePerson], rng: rando
                 reg_no=f"REG{500_000 + i:06d}",
                 name=f"{rng.choice(TOWNS).split()[0]} {rng.choice(['Traders', 'Enterprises', 'Textiles', 'Logistics', 'Agro'])} Pvt Ltd",
                 incorporated=incorporated,
-                address_key=f"ADDR_NOISE_{i:04d}",
+                address_key=_plausible_address(rng),
                 director_person_ids=directors,
             )
         )
@@ -506,12 +522,35 @@ def _place_identity_traps(
     accounts: list[Account] = []
     phones: list[Phone] = []
     companies: list[Company] = []
+
+    # Trap-minted ids get ordinary architecture-§5.3-shaped ids in a small
+    # reserved band (clear of every bulk range), never a "TRAP" token — a
+    # record must not announce its own role in the test design.
+    _TRAP_ID_BASE = 900_000
     fir_counter = 0
+    account_counter = 0
+    phone_counter = 0
+    org_counter = 0
 
     def _next_fir_id() -> str:
         nonlocal fir_counter
         fir_counter += 1
-        return f"FIR_TRAP_{fir_counter:02d}"
+        return f"FIR_{_TRAP_ID_BASE + fir_counter:06d}"
+
+    def _next_account_id() -> str:
+        nonlocal account_counter
+        account_counter += 1
+        return ACCOUNT_ID.format(_TRAP_ID_BASE + account_counter)
+
+    def _next_phone_id() -> str:
+        nonlocal phone_counter
+        phone_counter += 1
+        return PHONE_ID.format(_TRAP_ID_BASE + phone_counter)
+
+    def _next_org_id() -> str:
+        nonlocal org_counter
+        org_counter += 1
+        return ORG_ID.format(_TRAP_ID_BASE + org_counter)
 
     # --- Mohammad Ali: one surface, one source each, exactly as specified.
     ma_trap = IDENTITY_TRAPS["mohammad_ali"]
@@ -536,8 +575,8 @@ def _place_identity_traps(
             )
         elif surf.source_type == "bank_kyc":
             account = Account(
-                account_id="ACC_TRAP_MOALI",
-                account_no="TRAPACC000001",
+                account_id=_next_account_id(),
+                account_no=str(900_000_000 + account_counter),
                 holder_person_id=ma_person.person_id,
                 opened=ctx.profile.start_date - datetime.timedelta(days=200),
                 bank="Demo Bank",
@@ -555,13 +594,13 @@ def _place_identity_traps(
             )
         elif surf.source_type == "phone_registration":
             phone = Phone(
-                phone_id="PHN_TRAP_MOALI",
+                phone_id=_next_phone_id(),
                 msisdn="9999900001",
                 subscriber_person_id=ma_person.person_id,
                 activated=ctx.profile.start_date - datetime.timedelta(days=500),
                 deactivated=None,
-                imsi="IMSI_TRAP_MOALI",
-                seller="TrapSeller",
+                imsi=f"IMSI{_TRAP_ID_BASE + phone_counter:09d}",
+                seller=rng.choice(_DEALER_NAMES),
             )
             phones.append(phone)
             mentions.append(
@@ -575,11 +614,11 @@ def _place_identity_traps(
             )
         elif surf.source_type == "company_register":
             company = Company(
-                org_id="ORG_TRAP_MOALI",
-                reg_no="REGTRAPMOALI",
+                org_id=_next_org_id(),
+                reg_no=f"REG{_TRAP_ID_BASE + org_counter:06d}",
                 name="Ali Traders Pvt Ltd",
                 incorporated=ctx.profile.start_date - datetime.timedelta(days=300),
-                address_key="ADDR_TRAP_MOALI",
+                address_key=_plausible_address(rng),
                 director_person_ids=(ma_person.person_id,),
             )
             companies.append(company)
@@ -602,13 +641,13 @@ def _place_identity_traps(
     for i, person in enumerate(rk_trap["persons"]):
         v = rk_surfaces[i % len(rk_surfaces)]
         phone = Phone(
-            phone_id=f"PHN_TRAP_RAJKUMAR_{i}",
+            phone_id=_next_phone_id(),
             msisdn=f"999990001{i}",
             subscriber_person_id=person.person_id,
             activated=ctx.profile.start_date - datetime.timedelta(days=600 + i),
             deactivated=None,
-            imsi=f"IMSI_TRAP_RAJKUMAR_{i}",
-            seller="TrapSeller",
+            imsi=f"IMSI{_TRAP_ID_BASE + phone_counter:09d}",
+            seller=rng.choice(_DEALER_NAMES),
         )
         phones.append(phone)
         mentions.append(
@@ -657,11 +696,11 @@ def _place_identity_traps(
     )
     formal = ct_surfaces[2]
     ct_company = Company(
-        org_id="ORG_TRAP_CHATTERJEE",
-        reg_no="REGTRAPCHATTERJEE",
+        org_id=_next_org_id(),
+        reg_no=f"REG{_TRAP_ID_BASE + org_counter:06d}",
         name="Chatterjee & Co Pvt Ltd",
         incorporated=ctx.profile.start_date - datetime.timedelta(days=400),
-        address_key="ADDR_TRAP_CHATTERJEE",
+        address_key=_plausible_address(rng),
         director_person_ids=(ct_person.person_id,),
     )
     companies.append(ct_company)
@@ -695,13 +734,13 @@ def _place_identity_traps(
         )
     )
     az_phone = Phone(
-        phone_id="PHN_TRAP_AZHAGIRI",
+        phone_id=_next_phone_id(),
         msisdn="9999900099",
         subscriber_person_id=az_person.person_id,
         activated=ctx.profile.start_date - datetime.timedelta(days=450),
         deactivated=None,
-        imsi="IMSI_TRAP_AZHAGIRI",
-        seller="TrapSeller",
+        imsi=f"IMSI{_TRAP_ID_BASE + phone_counter:09d}",
+        seller=rng.choice(_DEALER_NAMES),
     )
     phones.append(az_phone)
     mentions.append(
@@ -772,7 +811,11 @@ def generate_world(out_dir: Path, profile: WorldProfile) -> None:
     n1_company = n1.companies[-1]
 
     rng_demo_fir = child()
-    demo_fir_id = "FIR_DEMO_0224"
+    # Must sit in the reserved band with the other dedicated records: the bulk
+    # FIRs are FIR_000000..FIR_0004NN, so "FIR_000224" collided with bulk #224
+    # and the upsert silently dropped one of the two. The human-facing number
+    # stays 224/2025 (prd §4) — that is what the demo refers to, not this id.
+    demo_fir_id = "FIR_900000"
     demo_variant = _pick_variant(person_c, rng_demo_fir)
     demo_fir_record = _render_and_record(
         "fraud",
@@ -916,7 +959,7 @@ def generate_world(out_dir: Path, profile: WorldProfile) -> None:
             # Directors' surfaces were already fixed and recorded by
             # `_place_identity_traps`; reuse what it recorded verbatim.
             directors = [
-                {"person_id": m.person_id, "surface": m.surface, "script": m.script}
+                {"surface": m.surface, "script": m.script}
                 for m in mentions
                 if m.source_record_id == f"COMPANY_{company.org_id}"
             ]
@@ -935,7 +978,9 @@ def generate_world(out_dir: Path, profile: WorldProfile) -> None:
                         person_id=person.person_id,
                     )
                 )
-                directors.append({"person_id": person.person_id, "surface": variant.surface, "script": variant.script})
+                # No person_id here — a real director register states a name,
+                # not a database id; the answer belongs only in truth.json.
+                directors.append({"surface": variant.surface, "script": variant.script})
         company_records.append(
             {
                 "source_record_id": f"COMPANY_{company.org_id}",
@@ -951,18 +996,34 @@ def generate_world(out_dir: Path, profile: WorldProfile) -> None:
             }
         )
 
-    vehicle_records = [
-        {
-            "source_record_id": f"VEHICLE_{v.vehicle_id}",
-            "source_system": "vehicle_registry_system",
-            "record_type": "vehicle",
-            "legal_basis": "LB-GENERIC-001",
-            "vehicle_id": v.vehicle_id,
-            "registration": v.registration,
-            "owner_person_id": v.owner_person_id,
-        }
-        for v in pop.vehicles
-    ]
+    # A real RC record states the owner's name, not a database id — the
+    # same reasoning as KYC/phone_reg above (and directors, just fixed).
+    vehicle_records = []
+    for v in pop.vehicles:
+        person = person_by_id[v.owner_person_id]
+        variant = _pick_variant(person, rng_records)
+        _note_surface(person.person_id, variant.surface, variant.script)
+        mentions.append(
+            GoldMention(
+                source_record_id=f"VEHICLE_{v.vehicle_id}",
+                field="owner_name",
+                surface=variant.surface,
+                script=variant.script,
+                person_id=person.person_id,
+            )
+        )
+        vehicle_records.append(
+            {
+                "source_record_id": f"VEHICLE_{v.vehicle_id}",
+                "source_system": "vehicle_registry_system",
+                "record_type": "vehicle",
+                "legal_basis": "LB-GENERIC-001",
+                "vehicle_id": v.vehicle_id,
+                "registration": v.registration,
+                "owner_name": variant.surface,
+                "owner_script": variant.script,
+            }
+        )
 
     tower_records = [
         {"tower_id": t.tower_id, "name": t.name, "lat": t.lat, "lon": t.lon, "footprint_m": t.footprint_m}
@@ -1031,15 +1092,16 @@ def generate_world(out_dir: Path, profile: WorldProfile) -> None:
             }
         )
     noise_txn_count = max(0, profile.txns - len(txn_records))
-    for j in range(noise_txn_count):
+    for _ in range(noise_txn_count):
         a, b = rng_txn_noise.sample(range(len(pop.accounts)), 2)
         ts = datetime.datetime.combine(
             profile.start_date + datetime.timedelta(days=rng_txn_noise.randint(0, span_days)),
             datetime.time(rng_txn_noise.randint(0, 23), rng_txn_noise.randint(0, 59)),
         )
+        i = len(txn_records)
         txn_records.append(
             {
-                "source_record_id": f"TXN_NOISE_{j:07d}",
+                "source_record_id": f"TXN_{i:07d}",
                 "source_system": "txn_system",
                 "record_type": "txn",
                 "legal_basis": "LB-GENERIC-001",

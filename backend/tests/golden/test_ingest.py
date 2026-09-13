@@ -10,6 +10,7 @@ import pytest
 
 from cid.core.db_pg import get_connection
 from cid.pipeline.ingest.load import SOURCES, WORLD_DIR, _iter_jsonl, load
+from cid.pipeline.normalize.offences import normalize_offence
 
 
 def _read_jsonl(filename: str) -> list[dict]:
@@ -119,13 +120,20 @@ def test_normalizers_exercised_through_real_records(loaded):
         assert normalized["ts"]["source_tz"] == "Asia/Kolkata"
         assert normalized["ts"]["utc"]
 
-        # offences.py, via the demo FIR (IPC 406 -> criminal_breach_of_trust).
-        cur.execute("SELECT normalized FROM source_records WHERE source_record_id = %s", ("FIR_DEMO_0224",))
+        # offences.py, via the demo FIR. Read its id from truth.json rather than
+        # hardcoding one — record ids are generator-owned and have changed twice.
+        demo_fir_id = truth["demo_case"]["anchor_record_id"]
+        demo_fir = next(f for f in _read_jsonl("firs.jsonl") if f["source_record_id"] == demo_fir_id)
+        cur.execute("SELECT normalized FROM source_records WHERE source_record_id = %s", (demo_fir_id,))
         normalized = cur.fetchone()[0]
-        assert normalized["offence"] == {
+        assert normalized["offence"] == normalize_offence(
+            demo_fir["offence_code_system"], demo_fir["offence_section"]
+        )
+        # The point of the ontology id: the same offence under either code system
+        # resolves to one id, so an IPC case and a BNS case are comparable.
+        assert normalize_offence("IPC", "420") == normalize_offence("BNS", "318") | {
             "code_system": "IPC",
-            "section": "406",
-            "ontology_id": "criminal_breach_of_trust",
+            "section": "420",
         }
 
         # addresses.py, via a real company record.

@@ -20,10 +20,21 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAppState = async () => {
+    // ponytail: local demo bypass, no backend configured so db.app doesn't exist.
+    // Skip real auth entirely. Remove once running through `base44 dev`.
+    if (!db.app?.getPublicSettings) {
+      setAppPublicSettings({ id: 'local-demo', public_settings: {} });
+      setUser({ email: 'demo@local' });
+      setIsAuthenticated(true);
+      setIsLoadingAuth(false);
+      setIsLoadingPublicSettings(false);
+      setAuthChecked(true);
+      return;
+    }
     try {
       setIsLoadingPublicSettings(true);
       setAuthError(null);
-      
+
       try {
         const publicSettings = await db.app.getPublicSettings();
         setAppPublicSettings(publicSettings);

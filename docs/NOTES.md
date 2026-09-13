@@ -1,5 +1,23 @@
 ## Current milestone
 
+M3a — Extraction v1 (rules). Started 2026-09-13.
+
+**Plan.** `backend/cid/pipeline/extract/{base.py,rules.py}` (the `Extractor` protocol from architecture §6.3, then a gazetteer + pattern extractor over FIR narratives), `backend/cid/core/runs.py` (run ids and `runs/<run_id>/` output), `backend/cid/metrics/nlp.py` (entity and relation F1 against `truth.json`'s gold spans). Tests: `tests/unit/test_extract_rules.py` (including the master §10.4 Amit case) and `tests/golden/test_extract_metrics.py`.
+
+**How the extractor is allowed to be developed (decided after a first attempt was contaminated).** The first implementer read `pipeline/generate/narratives.py` while orienting — the file holding the verbatim templates for all six families, held-out included — then stopped and reported it rather than building on tainted knowledge. Correct call: patterns written by someone who has seen the held-out sentence shapes cannot measure generalisation, which is the one thing M3a's number is for. My own prompt had also leaked a held-out cue word ("associate", from `extortion`).
+
+The protocol instead mirrors how a real engineer would work, and needs no pretending:
+- **May** read FIR narrative text from `data/world/firs.jsonl` **filtered to `split == "train"`** (`complaint`, `seizure`, `recovery`, `fraud`), and the gold spans for those same records. That is ordinary supervised development against records you are permitted to see.
+- **Must not** read held-out narrative text (`cheating`, `extortion`), their gold, or anything under `pipeline/generate/`. Held-out records are touched only by the scoring code, never by a human or agent writing patterns.
+
+**The gazetteer must not be the answer key.** A rules extractor may legitimately use knowledge a real deployment would have — common Indian given names and surnames, honorifics, organisation suffixes (`Pvt Ltd`, `Enterprises`), and phone/account/vehicle patterns. It must never read `truth.json`, the generator's per-person variant lists, or the specific surfaces planted in the world. Sixth instance of the same temptation: the measurement is worthless if the extractor is handed what it is being scored on. The honest split is by **template family** (`cheating` and `extortion` are held out), so the extractor meets unseen sentence structures even where the vocabulary overlaps.
+
+**Master §10.4, an explicit acceptance case.** For *"Amit transferred ₹5 lakh to XYZ Enterprises through account 1234."* the extractor must emit `Amit`/`XYZ Enterprises`/`1234` as mentions, a `TRANSFERRED_FUNDS_TO` relation as stated in the text, and `Amit`↔`1234` as **`MENTIONED_WITH` — never `OWNS`**. "Through account 1234" does not state ownership; reading it as ownership is the canonical example of an inference dressed as a fact.
+
+**Carry to M5:** the master flags C-03 against its own example — the ontology defines `TRANSFERRED_FUNDS_TO` between BankAccounts only, but the sentence states Person→Organization. Recording that as a *relation mention* is correct (it is what the text says), but the graph writer must not blindly promote it to an edge that violates the ontology.
+
+---
+
 M2 — Ingest, normalise, record store. **Complete.** 2026-09-13. (M2 has no human checkpoint in implementation.md's milestone map, so M3a follows directly.)
 
 Acceptance (all five from implementation.md M2, verified against a clean `make reset`):

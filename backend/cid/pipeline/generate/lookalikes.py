@@ -18,6 +18,7 @@ import datetime
 import random
 
 from cid.pipeline.generate.networks import (
+    _business_name,
     _claim,
     _pick_people_with_phones,
     _sample,
@@ -215,7 +216,7 @@ def _holding_company(
     company = Company(
         org_id="ORG_990101",
         reg_no="REG990101",
-        name="LA Holding Group Pvt Ltd",
+        name=_business_name(rng),
         incorporated=transfer_ts.date() - datetime.timedelta(days=365 * 6),  # years, not weeks.
         address_key="ADDR_LA_HOLDING",
         director_person_ids=(parent_acct.holder_person_id, sub_acct.holder_person_id),

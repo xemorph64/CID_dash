@@ -342,3 +342,40 @@ def test_no_entity_shared_across_demo_background_and_lookalikes():
                 f"{entity_id} appears in both {seen.get(entity_id)} and {structure.structure_id}"
             )
             seen[entity_id] = structure.structure_id
+
+
+# --- No ground truth leaking into user-visible company names ---------------
+
+
+_SCAFFOLDING_WORDS = ("shell", "payroll", "holding")
+
+
+def test_minted_company_names_carry_no_ground_truth():
+    """A company literally named "N1 Shell 2 Pvt Ltd" turns T-01 discovery
+    into theatre, and leaks the structure id into what the investigator
+    reads. Names must read like the bulk companies do."""
+    pop = _build_population()
+    rng = random.Random(23)
+    claimed: set[str] = set()
+
+    demo = inject_demo_networks(
+        pop, rng, threshold_inr=THRESHOLD_INR, start=START, end=END, claimed=claimed
+    )
+    background = inject_background_networks(
+        pop, rng, n=12, threshold_inr=THRESHOLD_INR, start=START, end=END, claimed=claimed
+    )
+    lookalikes = inject_lookalikes(
+        pop, rng, threshold_inr=THRESHOLD_INR, start=START, end=END, claimed=claimed
+    )
+
+    all_structure_ids = {s.structure_id for s in [*demo, *background, *lookalikes]}
+    checked = 0
+    for structure in [*demo, *background, *lookalikes]:
+        for company in structure.companies:
+            checked += 1
+            lowered = company.name.lower()
+            assert not any(word in lowered for word in _SCAFFOLDING_WORDS), company.name
+            assert not any(sid in company.name for sid in all_structure_ids), company.name
+            assert structure.structure_id not in company.name
+
+    assert checked >= 2 + 4  # at least N1's 2 shells + several background shells

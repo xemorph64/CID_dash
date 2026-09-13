@@ -26,6 +26,7 @@ from __future__ import annotations
 import datetime
 import random
 
+from cid.pipeline.generate.names import TOWNS
 from cid.pipeline.generate.specs import (
     Account,
     Call,
@@ -38,6 +39,18 @@ from cid.pipeline.generate.specs import (
 )
 
 # --- Small deterministic helpers --------------------------------------------
+
+# Same style as world.py's bulk companies: a place plus a business word.
+# Minted companies must never carry a structure id or a ground-truth label
+# like "Shell" in a user-visible field — the discovery would be theatre.
+_BUSINESS_WORDS = ("Traders", "Enterprises", "Textiles", "Logistics", "Agro", "Exports", "Industries")
+
+
+def _business_name(rng: random.Random) -> str:
+    place = rng.choice(TOWNS).split()[0]
+    if rng.random() < 0.15:
+        return f"{place} Trading Co"
+    return f"{place} {rng.choice(_BUSINESS_WORDS)} Pvt Ltd"
 
 
 def _sample(pool: list, rng: random.Random, k: int) -> list:
@@ -155,7 +168,7 @@ def _shell_chain(
         company = Company(
             org_id=org_id,
             reg_no=f"REG{org_id_start + i:06d}",
-            name=f"{structure_id} Shell {i + 1} Pvt Ltd",
+            name=_business_name(rng),
             incorporated=incorporated,
             address_key=f"ADDR_{structure_id}_SHELL",
             director_person_ids=(person_a, co_director),

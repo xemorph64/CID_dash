@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* C.I.D. dark command-center palette (default) */
+    --background: 222 18% 7%;
+    --foreground: 40 30% 92%;
+    --card: 222 16% 10%;
+    --card-foreground: 40 30% 92%;
+    --popover: 222 18% 9%;
+    --popover-foreground: 40 30% 92%;
+    --primary: 38 80% 58%;
+    --primary-foreground: 222 20% 9%;
+    --secondary: 222 14% 16%;
+    --secondary-foreground: 40 20% 85%;
+    --muted: 222 12% 18%;
+    --muted-foreground: 220 10% 62%;
+    --accent: 222 16% 14%;
+    --accent-foreground: 40 30% 92%;
+    --destructive: 0 70% 52%;
+    --destructive-foreground: 40 30% 96%;
+    --border: 222 14% 20%;
+    --input: 222 14% 22%;
+    --ring: 38 80% 58%;
+    --radius: 0.625rem;
+
+    --font-heading: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+    /* entity category colors */
+    --c-person: 205 80% 64%;
+    --c-phone: 262 70% 68%;
+    --c-vehicle: 28 85% 60%;
+    --c-location: 152 55% 52%;
+    --c-organization: 343 70% 64%;
+    --c-case: 38 85% 58%;
+    --c-account: 186 70% 56%;
+    --c-event: 312 60% 66%;
+
+    --sidebar-background: 222 20% 6%;
+    --sidebar-foreground: 40 20% 82%;
+    --sidebar-primary: 38 80% 58%;
+    --sidebar-primary-foreground: 222 20% 9%;
+    --sidebar-accent: 222 14% 14%;
+    --sidebar-accent-foreground: 40 30% 92%;
+    --sidebar-border: 222 14% 18%;
+    --sidebar-ring: 38 80% 58%;
+  }
+
+  .light {
+    --background: 40 40% 98%;
+    --foreground: 222 20% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 20% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 20% 12%;
+    --primary: 28 80% 48%;
+    --primary-foreground: 40 40% 98%;
+    --secondary: 40 30% 94%;
+    --secondary-foreground: 222 20% 18%;
+    --muted: 40 28% 92%;
+    --muted-foreground: 222 10% 42%;
+    --accent: 40 30% 90%;
+    --accent-foreground: 222 20% 14%;
+    --destructive: 0 70% 48%;
+    --destructive-foreground: 40 40% 98%;
+    --border: 220 14% 86%;
+    --input: 220 14% 84%;
+    --ring: 28 80% 48%;
+    --sidebar-background: 40 40% 97%;
+    --sidebar-foreground: 222 16% 22%;
+    --sidebar-primary: 28 80% 48%;
+    --sidebar-accent: 40 28% 90%;
+    --sidebar-border: 220 14% 86%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.28);
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+  .grid-bg {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
+    background-size: 44px 44px;
+    background-position: -1px -1px;
+  }
+  .text-balance { text-wrap: balance; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

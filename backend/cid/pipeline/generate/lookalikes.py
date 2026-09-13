@@ -17,6 +17,7 @@ from __future__ import annotations
 import datetime
 import random
 
+from cid.pipeline.generate.names import TOWNS
 from cid.pipeline.generate.networks import (
     _business_name,
     _claim,
@@ -218,7 +219,7 @@ def _holding_company(
         reg_no="REG990101",
         name=_business_name(rng),
         incorporated=transfer_ts.date() - datetime.timedelta(days=365 * 6),  # years, not weeks.
-        address_key="ADDR_LA_HOLDING",
+        address_key=f"{rng.choice(TOWNS)}, Unit {rng.randint(1, 40)}",
         director_person_ids=(parent_acct.holder_person_id, sub_acct.holder_person_id),
     )
     _claim(claimed, company.org_id)

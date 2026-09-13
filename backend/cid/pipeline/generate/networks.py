@@ -24,10 +24,12 @@ it picks — callers thread the same set through every `inject_*` call.
 from __future__ import annotations
 
 import datetime
+import hashlib
 import random
 
 from cid.pipeline.generate.names import TOWNS
 from cid.pipeline.generate.specs import (
+    ACCOUNT_ID,
     Account,
     Call,
     Company,
@@ -114,9 +116,16 @@ def shell_org_account(company: Company) -> Account:
     the company: `_shell_chain` uses it to build the chain's transfers, and
     tests call the same function to verify org ownership directly.
     """
+    # Derived from the org id with hashlib (never builtin hash(), which is
+    # salted per process) so this stays a pure, reproducible function. The
+    # digits must not spell out the owner: an account number that embeds
+    # ORG_990001 would hand over the ownership that T-01 exists to work out,
+    # and a real account number is digits anyway. ACC_9xxxxx keeps these clear
+    # of the bulk population's ACC_0xxxxx range.
+    digest = int(hashlib.sha1(company.org_id.encode("utf-8")).hexdigest()[:12], 16)
     return Account(
-        account_id=f"ACC_ORGHOLD_{company.org_id}",
-        account_no=f"ORGACC{company.org_id}",
+        account_id=ACCOUNT_ID.format(900_000 + digest % 100_000),
+        account_no=str(500_000_000_000 + digest % 100_000_000),
         opened=company.incorporated,
         bank="Demo Bank",
         kyc_status="verified",
@@ -156,6 +165,10 @@ def _shell_chain(
         datetime.time(10, 0),
     )
 
+    # T-01 wants the shells to share a registered address. It must read like a
+    # real one: an address naming the structure would announce the pattern.
+    chain_address = f"{rng.choice(TOWNS)}, Unit {rng.randint(1, 40)}"
+
     transfers: list[Transfer] = []
     companies: list[Company] = []
     hop_account_ids: list[str] = []
@@ -170,7 +183,7 @@ def _shell_chain(
             reg_no=f"REG{org_id_start + i:06d}",
             name=_business_name(rng),
             incorporated=incorporated,
-            address_key=f"ADDR_{structure_id}_SHELL",
+            address_key=chain_address,
             director_person_ids=(person_a, co_director),
         )
         hop_account = shell_org_account(company)

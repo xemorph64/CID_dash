@@ -439,6 +439,7 @@ def _render_and_record(
     fir_truth: dict[str, dict],
     forced_slots: dict[str, str] | None = None,
     forced_person_map: dict[str, tuple[str, str]] | None = None,
+    language: str | None = None,
 ) -> dict:
     slots, person_map = _build_fir_slots(family, rng, ctx)
     if forced_slots:
@@ -446,7 +447,7 @@ def _render_and_record(
     if forced_person_map:
         person_map.update(forced_person_map)
 
-    narrative = render_fir(family, slots, rng)
+    narrative = render_fir(family, slots, rng, language=language)
 
     for span in narrative.spans:
         if span.slot in person_map:
@@ -788,6 +789,9 @@ def generate_world(out_dir: Path, profile: WorldProfile) -> None:
             "org_1": n1_company.name,
         },
         forced_person_map={"accused_1": (person_c.person_id, demo_variant.script)},
+        # The demo audience reads this record most closely (prd §4 beat 5), and
+        # the prd's own excerpt is English. Other FIRs keep the code-mixed spread.
+        language="en",
     )
 
     # --- Noise FIRs, filling out the configured `firs` total.

@@ -1,6 +1,27 @@
 ## Current milestone
 
-M1 — Synthetic world. Started 2026-09-12 (human cleared the M0 checkpoint and asked for the four open questions to be resolved; see "Resolved questions" below).
+M1 — Synthetic world. **Complete, awaiting the human checkpoint.** 2026-09-12 → 2026-09-13.
+
+Acceptance (all six from implementation.md M1, verified against a freshly generated full-scale world, not assumed):
+- `make world` twice → byte-identical, including under a changed `PYTHONHASHSEED`
+- `truth.json` carries N1–N3 + 30 background networks, every one typology-labelled
+- Mohammad Ali's four surfaces across four sources, each checked in the emitted record's own field
+- two Raj Kumars: DOBs 1979-11-02 / 1993-06-30, phones …010 / …011
+- Devanagari 13.6% of 5,444 mentions (floor 10%); IPC 215 / BNS 285
+- 2,114 gold spans, zero offset mismatches
+
+Also verified: zero duplicate `(record, field)` mentions, zero company names carrying ground truth, demo case Person C in N1 and named in FIR 224/2025, `make world-report` readable, FIRs skim as believable and clearly fictional.
+
+Next: M2 (ingest, normalise, record store) — do not start until the human clears this checkpoint.
+
+**For M2, carried forward:**
+- Towers are reference data, **not** source records — they carry no `source_record_id`/`record_type`/`legal_basis`, matching architecture §5.1's `record_type` enum (`fir, cdr, txn, kyc, phone_reg, company, vehicle`, no tower). Load them separately; don't feed them to the legal-basis rejection path.
+- `truth.json`'s `missing_legal_basis_ids` lists 5 records deliberately emitted with `legal_basis: null`, so M2's "reject and count" path has realistic input.
+- `truth.json` is ~1.8 MB at full scale, dominated by the mention list.
+
+---
+
+Original M1 plan (kept for reference). Started 2026-09-12 (human cleared the M0 checkpoint and asked for the four open questions to be resolved; see "Resolved questions" below).
 
 **Plan.** Files under `backend/cid/pipeline/generate/`: `names.py` (name corpus + variant rendering + the four identity traps), `narratives.py` (FIR template families with gold spans/relations at character offsets), `networks.py` (N1–N3 + ~30 background), `lookalikes.py` (4 honest false-positive shapes), `world.py` (orchestrates, emits `data/world/*.jsonl`), `truth.py` (assembles `truth.json`), `report.py` (`make world-report`). Tests in `backend/tests/unit/` (per-module) and `backend/tests/golden/` (world-level acceptance).
 
@@ -89,6 +110,13 @@ _None open. The four raised before M0 were resolved on 2026-09-12 (human asked f
 - M1: `indic-transliteration` — already sanctioned by architecture.md §3 (listed under ER); used here for Devanagari/Tamil/Bengali renderings of background names, and at M4 for the Indic phonetic key.
 
 ## What this milestone taught
+
+**M1 — Synthetic world.**
+1. **A green test suite is not evidence the data is right.** Every M1 acceptance check passed while the demo case pointed at an unrelated FIR, the bank KYC card contradicted its own ground truth, and 39 companies were named "N1 Shell 2 Pvt Ltd". All three surfaced from reading the generated world the way a human would. The acceptance criteria test the properties someone thought to list; they say nothing about the ones nobody listed.
+2. **Ground truth must be checked against the data it describes.** The Mohammad Ali test passed by confirming `truth.json` contained four surfaces — never that the records said them. A gold mention that isn't in its record would have scored M4's entity resolution against a phantom and penalised it for not finding one.
+3. **Nothing user-visible may carry ground truth.** A company called "Shell 2" gives away the layering T-01 exists to infer. The structure id belongs in `truth.json`, never in a name an investigator reads.
+4. **Determinism is a discipline, not a setting.** Explicit `rng` everywhere, instance-seeded Faker, no builtin `hash()` (salted per process), no `now()`/`uuid4()`, sorted set iteration, canonical JSON. The `PYTHONHASHSEED=0` vs `1` subprocess test is what proves it rather than asserting it.
+5. **Generators need their prerequisites stated.** `networks.py` needs ~31 mule fan-outs to each find 12 unclaimed accounts in a 40-day window; the first distribution spread accounts across 1,000 days of history and starved the span. It failed loudly instead of quietly producing weaker networks — which is why it was a ten-minute fix rather than an M9 mystery about a typology that never fired.
 
 **M0 — Foundations.**
 1. Two databases, two jobs: Neo4j holds *relationships* (who connects to whom, traversed cheaply many hops out); Postgres holds *records and workflow* (the original source records behind every edge, plus cases, users, leads, stamps and the audit chain). The graph stays small and fast because the bulky evidence lives in Postgres and edges only carry a `source_record_id` pointer to it (P-17, P-18).
